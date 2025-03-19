@@ -22,7 +22,7 @@ export const registerUser = async (req,res) => {
         })
     }
 
-    const existenceUser = User.findOne({email})
+    const existenceUser = await User.findOne({email})
 
     if(existenceUser){
         return res.status(400).json({
@@ -43,10 +43,10 @@ export const registerUser = async (req,res) => {
         })
     }
 
-    const avatarUrl = await uploadOnCLoudinary(avatarLocalPath)
-    const coverImageUrl = await uploadOnCLoudinary(coverImageLocalPath)
+    const avatar = await uploadOnCLoudinary(avatarLocalPath)
+    const coverImage = await uploadOnCLoudinary(coverImageLocalPath)
 
-    if(!avatarUrl){
+    if(!avatar){
         return res.status(400).json({
             message: "avatar url is not present"
         })
@@ -54,8 +54,8 @@ export const registerUser = async (req,res) => {
 
     const user = await User.create({
         fullname,
-        avatarUrl: avatarUrl.url,
-        coverImageUrl: coverImageUrl?.url || "",
+        avatar: avatar.url,
+        coverImage: coverImage?.url || "",
         email,
         password,
         username: username.toLowerCase() 
