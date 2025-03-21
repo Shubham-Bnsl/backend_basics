@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import express, { urlencoded } from "express"
 import userRouter from "./routes/user.routes.js";
+import errorMiddleware from "./middlewares/error.middleware.js";
 
 
 
@@ -14,6 +15,9 @@ app.use(express.static("public"))
 
 app.use("/users",userRouter);
 
+app.use(errorMiddleware);
+
+    
 
 
 

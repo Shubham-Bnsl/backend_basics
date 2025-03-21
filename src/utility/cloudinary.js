@@ -18,8 +18,9 @@ const uploadOnCLoudinary = async (localFilePath) => {
                 resource_Type:"auto"
             })
         
-            fs.unlinkSync(localFilePath)
-          return response
+        
+          fs.unlinkSync(localFilePath)  
+          return response 
 
     } catch (error) {
         fs.unlinkSync(localFilePath) //remove the locally temp saved file as upload operation got failed

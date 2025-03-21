@@ -1,7 +1,20 @@
 import { User } from "../models/video/user.model.js";
 import uploadOnCLoudinary from "../utility/cloudinary.js";
+import errorHandler from "../utility/errorHandler.js";
 
-export const registerUser = async (req,res) => {
+
+const generateAccessTokenAndRefreshToken= async(user)=>{
+        try {
+            const accessToken = user.generateAccessToken();
+            const refreshToken = user.generateRefreshToken();
+            
+            return {accessToken, refreshToken};
+        } catch (error) {
+           next(errorHandler(500,"something went wron while generating access and refresh token")) 
+        }
+}
+
+export const registerUser = async (req,res,next) => {
         
      //get users details from frontend
      //validation
@@ -13,24 +26,18 @@ export const registerUser = async (req,res) => {
      // chck for user creation
      //return response
 
-    const {username,email,fullname,password} = req.body
-    console.log(email,password);
+     
+    const {username,fullname,email,password} = req.body
     
-    if( fullname === "" ){
-       return res.status(400).json({
-            message:"please write your full name"
-        })
+    if(fullname ===""){
+        return next(errorHandler(400,"Please write your fullname"));
     }
 
     const existenceUser = await User.findOne({email})
 
     if(existenceUser){
-        return res.status(400).json({
-            message:"User is already exist",
-            result:false
-        })
+        return next(errorHandler(400,"User is already exist"))
     }
-
     console.log("Got User ",existenceUser);
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
@@ -80,4 +87,64 @@ export const registerUser = async (req,res) => {
         })    
 }
 
+export const loginUser = async (req,res,next)=>{
+        // req body ->data
+        //username or email
+        //find the user
+        //password check 
+        //access refresh token
+        // send cookies 
+        //response
+
+
+    const {email,password,username} =  req.body
+
+    if(!username || !email || !password){
+        return next(errorHandler(400,"username or email orpassword is missing"))
+    }
+    
+    const user = await User.findOne({email: email});
+
+    if(!user){
+        return next(errorHandler(400,"User not registered Please signup"))
+    }
+
+     const isPasswordValid = await user.isPasswordCorrect(password);
+    
+     if(!isPasswordValid){
+        return next(errorHandler(400,"invalid User Credentials"))
+     }
+
+     const {accessToken,refreshToken} = await generateAccessTokenAndRefreshToken(user)
+     user.refreshToken = refreshToken;
+
+     await user.save()
+
+
+     return res.status(200)
+     .json({
+        message:"user is logged in Successfully",
+        user:user,
+
+     })
+     .cookie("accessToken",accessToken,{httpOnly:true,secure:true})
+     .cookie("refreshToken",refreshToken,{httpOnly:true,secure:true})
+
+} 
+
+export const logOutUser = async(req,res)=>{
+      const user = req.user;
+
+      res.status(200)
+      .clearCookies("accessToken")
+      .clearCookies("refreshToken")
+      .json({
+            message:"user is deleted Successfully",
+
+      })
+
+      user.refreshToken = null;
+
+
+}
 
