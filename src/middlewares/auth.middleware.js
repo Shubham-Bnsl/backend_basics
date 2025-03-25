@@ -1,6 +1,6 @@
-import { jwt } from "jsonwebtoken";
-import errorHandler from "../utility/errorHandler";
-import { User } from "../models/video/user.model";
+import jwt  from "jsonwebtoken";
+import errorHandler from "../utility/errorHandler.js";
+import { User } from "../models/video/user.model.js";
 
 export const jwtVerfiy = async(req,res,next)=>{
 
@@ -11,8 +11,8 @@ export const jwtVerfiy = async(req,res,next)=>{
             return next(errorHandler(401,"unauthrozied request"))
         }
     
-        const decodedToken = jwt.verify(token,process.env.ACCESS_TOKEN)
-        const {_id} = decodedToken._id
+        const decodedToken = await jwt.verify(token,process.env.ACCESS_TOKEN)
+        const {_id} = decodedToken
         const user = await User.findById(_id)
     
         if(!user){
