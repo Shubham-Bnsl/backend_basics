@@ -190,7 +190,7 @@ export const refreshAccessToken = async (req, res, next) => {
 
         const { accessToken, refreshToken } = await generateAccessTokenAndRefreshToken(user)
 
-        
+
         return res.status(200)
             .cookie("accessToken", accessToken, { secure: true, httpOnly: true })
             .cookie("refreshToken", refreshToken, { secure: true, httpOnly: true }).
@@ -200,11 +200,110 @@ export const refreshAccessToken = async (req, res, next) => {
                 refreshToken: refreshToken
             })
 
-        
+
 
     } catch (error) {
         return next(errorHandler(401, "Invalid hi refreshToken"));
     }
 
 }
-  
+
+export const changeCurrentPassword = async (req, res, next) => {
+    const { oldPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+    if (!isPasswordCorrect) {
+        next(errorHandler(400, "invalid Old Password"))
+    }
+
+
+    user.password = newPassword
+
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).josn({
+        message: "Password Changed Successfully"
+    })
+
+
+
+
+
+
+
+}
+
+
+export const getUser = async (req, res, next) => {
+    const user = req.user;
+
+    if (!user) {
+        return next(errorHandler(400, "User Not Found"))
+    }
+
+    return res.status(200).json({
+        message: "Current User Fetched Successfully",
+        user,
+    })
+}
+
+export const updateAccountDetails = async (req, res, next) => {
+
+    const { fullname, email } = req.body
+
+    if (!fullname || !email) {
+        return next(errorHandler(400, "All fields are required"))
+    }
+
+    const updateUser = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullname:fullname,
+                email:email
+            }
+        },
+        { new: true }
+    ).select("-password ")
+
+    res.status(200)
+    .json({
+            mesage:"account details are updated",
+            updateUser
+    })
+}
+
+export const updateUserAvatar = async(req,res,next)=>{
+
+        const avatarLocalPath = req.file?.path
+
+        if(!avatarLocalPath){
+            return next(errorHandler(400,"Avatar file is missing"))
+        }
+
+        const avatar = await uploadOnCLoudinary(avatarLocalPath);
+
+        if(!avatar.url){
+            return next(errorHandler(400,"error while uploading avatar"))
+        }
+
+        const UpdateAvatar = await User.findByIdAndUpdate(
+            req.user?._id,
+            {
+                $set:{
+                    avatar:avatar.url
+                }
+            },
+            {new: true}
+        ).select("-password")
+
+
+        return res.status(200)
+        .json({
+            mesage:"Avatar image is updated",
+            UpdateAvatar
+        })
+}
+
