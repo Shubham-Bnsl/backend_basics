@@ -227,13 +227,8 @@ export const changeCurrentPassword = async (req, res, next) => {
         message: "Password Changed Successfully"
     })
 
-
-
-
-
-
-
 }
+
 
 
 export const getUser = async (req, res, next) => {
@@ -261,49 +256,175 @@ export const updateAccountDetails = async (req, res, next) => {
         req.user?._id,
         {
             $set: {
-                fullname:fullname,
-                email:email
+                fullname: fullname,
+                email: email
             }
         },
         { new: true }
     ).select("-password ")
 
     res.status(200)
-    .json({
-            mesage:"account details are updated",
+        .json({
+            mesage: "account details are updated",
             updateUser
-    })
+        })
 }
 
-export const updateUserAvatar = async(req,res,next)=>{
+export const updateUserAvatar = async (req, res, next) => {
 
-        const avatarLocalPath = req.file?.path
+    const avatarLocalPath = req.file?.path
 
-        if(!avatarLocalPath){
-            return next(errorHandler(400,"Avatar file is missing"))
-        }
+    if (!avatarLocalPath) {
+        return next(errorHandler(400, "Avatar file is missing"))
+    }
 
-        const avatar = await uploadOnCLoudinary(avatarLocalPath);
+    const avatar = await uploadOnCLoudinary(avatarLocalPath);
 
-        if(!avatar.url){
-            return next(errorHandler(400,"error while uploading avatar"))
-        }
+    if (!avatar.url) {
+        return next(errorHandler(400, "error while uploading avatar"))
+    }
 
-        const UpdateAvatar = await User.findByIdAndUpdate(
-            req.user?._id,
-            {
-                $set:{
-                    avatar:avatar.url
-                }
-            },
-            {new: true}
-        ).select("-password")
+    const UpdateAvatar = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                avatar: avatar.url
+            }
+        },
+        { new: true }
+    ).select("-password")
 
 
-        return res.status(200)
+    return res.status(200)
         .json({
-            mesage:"Avatar image is updated",
+            mesage: "Avatar image is updated",
             UpdateAvatar
         })
 }
 
+
+export const getUserChannelProfile = async (req, res) => {
+    const { username } = req.params;
+
+    if (!username?.trim()) {
+        return next(errorHandler(400, "username is missing"));
+    }
+
+    const channel = await User.aggregate(
+        [
+            {
+                $match: {
+                    username: username?.toLowerCase()
+                }
+            },
+            {
+                $lookup: {
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "channel",
+                    as: "subscribers"
+                }
+            },
+            {
+                $lookup: {
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "subscriber",
+                    as: "subscribedTo"
+                }
+            },
+            {
+                $addFields: {
+                    subscribersCount: {
+                        $size: "$subscribers"
+                    },
+
+                    channelSubscribedCount: {
+                        $size: "$subscribedTo"
+                    },
+                    isSubscribed: {
+                        $cond: {
+                            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                            then: true,
+                            else: false
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    fullname: 1,
+                    username: 1,
+                    subscribersCount: 1,
+                    channelSubscribedCount: 1,
+                    isSubscribed: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                    email: 1
+
+                }
+            }
+        ]
+    )
+
+    if (!channel?.length) {
+        return next(errorHandler(404, "channel doesn't exists"))
+    }
+
+    return res
+        .status(200)
+        .json({
+            channelDetails: channel[0],
+            message: "User channel fetched SuccessFully",
+        })
+}
+
+export const getWatchHistory = async (req, res, next) => {
+
+    const user = await User.aggregate(
+        [
+            {
+                $match: {
+                    _id: new mongoose.Types.ObjectId(req.user._id)
+                }
+            },
+            {
+                $lookup: {
+                    from: "videos",
+                    localField: "watchHistory",
+                    foreignField: "_id",
+                    as: "watchHistory",
+                    pipeline: [
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "owner",
+                                foreignField: "_id",
+                                as: "owner",
+                                pipeline: [
+
+                                    {
+                                        $project: {
+                                            fullname: 1,
+                                            username: 1,
+                                            avatar: 1
+
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    )
+
+    return res
+    .status(200)
+    .json({
+        message:"watchHistory fetched Sucessfully",
+        data:user[0].watchHistory
+    })
+
+}
